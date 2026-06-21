@@ -1,17 +1,23 @@
 # AssetView
 
-자산 증빙 서비스 프론트엔드입니다.
+오픈뱅킹 계좌와 잔액을 조회하는 프론트엔드입니다.
 
 ## 실행
+
+백엔드 서버를 `http://localhost:8080`에서 실행한 후:
 
 ```bash
 npm run dev
 ```
 
-## 데모 로그인
+개발 서버는 `/api` 요청을 `http://localhost:8080`으로 프록시합니다.
 
-- 이메일: `demo@assetview.kr`
-- 비밀번호: `assetview123`
+## 연동 API
 
-현재 인증은 화면 시연을 위한 브라우저 저장소 기반 구현입니다. 실제 서비스에서는
-서버 인증 API와 안전한 세션 쿠키를 연결해야 합니다.
+- 회원가입 및 로그인
+- 오픈뱅킹 인증 URL 발급
+- 연결 계좌 목록 조회
+- 계좌별 잔액 조회
+
+JWT accessToken은 로그인 상태 유지 선택 시 `localStorage`, 선택하지 않으면
+`sessionStorage`에 저장됩니다.
