@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import './App.css'
 
 type View = 'landing' | 'profile' | 'assets' | 'share'
@@ -569,7 +569,16 @@ function ShareCard({ navigate }: { navigate: (view: View) => void }) {
           </fieldset>
         </aside>
 
-        <div className={`share-preview preview-theme-${theme}`}>
+        <div
+          className={[
+            'share-preview',
+            `preview-theme-${theme}`,
+            !options.badge && 'hide-badge',
+            !options.name && 'hide-name',
+            !options.total && 'hide-total',
+            !options.date && 'hide-date',
+          ].filter(Boolean).join(' ')}
+        >
           <VerifiedCard compact />
           <div className="share-preview-actions">
             <button className="secondary-button" onClick={() => navigate('profile')} type="button">
@@ -589,12 +598,6 @@ function ShareCard({ navigate }: { navigate: (view: View) => void }) {
               공유하기
             </button>
           </div>
-          <div className="share-card-overlay">
-            {!options.badge && <style>{'.share-preview .verified-label{visibility:hidden}'}</style>}
-            {!options.name && <style>{'.share-preview .verified-name,.share-preview .verified-card>p{visibility:hidden}'}</style>}
-            {!options.total && <style>{'.share-preview .verified-total{visibility:hidden}'}</style>}
-            {!options.date && <style>{'.share-preview .verified-card time{visibility:hidden}'}</style>}
-          </div>
         </div>
       </section>
       {notice && <div className="toast">{notice}</div>}
@@ -603,12 +606,32 @@ function ShareCard({ navigate }: { navigate: (view: View) => void }) {
 }
 
 function App() {
-  const [view, setView] = useState<View>('landing')
+  const getViewFromHash = (): View => {
+    const hash = window.location.hash.replace('#', '')
+    return ['landing', 'profile', 'assets', 'share'].includes(hash)
+      ? hash as View
+      : 'landing'
+  }
+  const [view, setView] = useState<View>(getViewFromHash)
 
   const navigate = (nextView: View) => {
     setView(nextView)
+    window.history.pushState(null, '', `#${nextView}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  useEffect(() => {
+    if (!window.location.hash) {
+      window.history.replaceState(null, '', '#landing')
+    }
+    const handleHashChange = () => setView(getViewFromHash())
+    window.addEventListener('hashchange', handleHashChange)
+    window.addEventListener('popstate', handleHashChange)
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange)
+      window.removeEventListener('popstate', handleHashChange)
+    }
+  }, [])
 
   if (view === 'landing') return <Landing navigate={navigate} />
   if (view === 'profile') return <Profile navigate={navigate} />

@@ -709,6 +709,7 @@ button {
 
 .assets-summary > div {
   display: grid;
+  min-width: 0;
   gap: 5px;
 }
 
@@ -789,11 +790,13 @@ button {
 .asset-groups {
   display: grid;
   min-height: 390px;
+  min-width: 0;
   margin-top: 17px;
   gap: 14px;
 }
 
 .asset-group {
+  min-width: 0;
   overflow: hidden;
   border: 1px solid #e8ecf2;
   border-radius: 14px;
@@ -1170,8 +1173,12 @@ button {
   font-size: 13px;
 }
 
-.share-card-overlay {
-  display: none;
+.share-preview.hide-badge .verified-label,
+.share-preview.hide-name .verified-name,
+.share-preview.hide-name .verified-card > p,
+.share-preview.hide-total .verified-total,
+.share-preview.hide-date .verified-card time {
+  visibility: hidden;
 }
 
 @media (max-width: 820px) {
@@ -1302,6 +1309,11 @@ button {
     font-size: 16px;
   }
 
+  .main-nav button:nth-child(3),
+  .main-nav .avatar-small {
+    display: none;
+  }
+
   .landing-header nav .nav-cta {
     padding: 9px 12px;
     font-size: 11px;
@@ -1357,20 +1369,22 @@ button {
   }
 
   .add-asset-button {
-    padding: 0 12px;
-    font-size: 10px;
+    width: 42px;
+    padding: 0;
+    font-size: 0;
+    justify-content: center;
   }
 
   .assets-summary {
     min-height: 82px;
     padding: 0 12px;
-    grid-template-columns: 1.5fr 0.8fr auto;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) auto;
     gap: 8px;
   }
 
   .assets-summary strong,
   .assets-summary > div:first-child strong {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .asset-tabs {
@@ -1379,7 +1393,7 @@ button {
 
   .asset-row {
     padding-inline: 11px;
-    grid-template-columns: 28px 1.2fr 0.8fr 1fr;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
     gap: 5px;
   }
 
