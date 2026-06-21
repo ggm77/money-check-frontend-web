@@ -781,6 +781,319 @@ button {
   font-size: 9px;
 }
 
+.showcase-entry-button {
+  color: var(--blue);
+  border-color: #cfd9ff;
+  background: #f7f9ff;
+}
+
+.showcase-layout {
+  display: grid;
+  min-height: 680px;
+  grid-template-columns: 330px 1fr;
+}
+
+.showcase-controls {
+  padding: 38px 34px;
+  border-right: 1px solid #e5eaf1;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 42px;
+  padding: 0;
+  color: #65738a;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.back-button .icon {
+  transform: rotate(180deg);
+}
+
+.showcase-controls h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 27px;
+  letter-spacing: -0.045em;
+}
+
+.showcase-controls > div > p {
+  margin: 11px 0 0;
+  color: #78859a;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.showcase-controls fieldset {
+  margin: 38px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.showcase-controls legend {
+  margin-bottom: 15px;
+  color: #2d3a51;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.showcase-theme-list {
+  display: flex;
+  gap: 10px;
+}
+
+.showcase-theme {
+  width: 49px;
+  height: 66px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+}
+
+.showcase-theme.active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px #fff inset;
+}
+
+.showcase-theme-navy {
+  background: linear-gradient(150deg, #143a62, #04172d);
+}
+
+.showcase-theme-blue {
+  background: linear-gradient(150deg, #1558ff, #052982);
+}
+
+.showcase-theme-cream {
+  background: linear-gradient(150deg, #fffaf2, #ead4b7);
+}
+
+.showcase-theme-cloud {
+  background: linear-gradient(150deg, #fff, #dce3eb);
+}
+
+.selected-theme {
+  display: block;
+  margin-top: 9px;
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.showcase-source {
+  display: flex;
+  align-items: center;
+  margin-top: 42px;
+  padding: 15px;
+  color: var(--blue);
+  background: #f4f7ff;
+  border: 1px solid #dfe7fb;
+  border-radius: 11px;
+  gap: 11px;
+}
+
+.showcase-source > span {
+  display: grid;
+  gap: 4px;
+}
+
+.showcase-source strong {
+  color: #35435b;
+  font-size: 10px;
+}
+
+.showcase-source small {
+  color: #8491a5;
+  font-size: 8px;
+}
+
+.showcase-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(25, 81, 190, 0.06), transparent 32%),
+    #fbfcfe;
+  flex-direction: column;
+}
+
+.balance-showcase-card {
+  position: relative;
+  display: flex;
+  width: min(410px, 100%);
+  min-height: 510px;
+  padding: 34px;
+  overflow: hidden;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 24px;
+  box-shadow: 0 25px 48px rgba(3, 23, 48, 0.24);
+  flex-direction: column;
+}
+
+.balance-showcase-card::before,
+.balance-showcase-card::after {
+  position: absolute;
+  content: '';
+  border: 1px solid rgba(101, 166, 226, 0.15);
+  border-radius: 50%;
+}
+
+.balance-showcase-card::before {
+  top: 70px;
+  left: -190px;
+  width: 500px;
+  height: 500px;
+}
+
+.balance-showcase-card::after {
+  right: -170px;
+  bottom: -250px;
+  width: 510px;
+  height: 510px;
+}
+
+.balance-showcase-card.theme-navy {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(61, 121, 196, 0.3), transparent 30%),
+    linear-gradient(155deg, #0a2b4b, #04182f 60%, #082844);
+}
+
+.balance-showcase-card.theme-blue {
+  background:
+    radial-gradient(circle at 80% 8%, rgba(123, 174, 255, 0.36), transparent 30%),
+    linear-gradient(150deg, #145aff, #062774);
+}
+
+.balance-showcase-card.theme-cream {
+  color: #18263c;
+  background: linear-gradient(150deg, #fffdf8, #ecd6b8);
+  border-color: #e8d3b6;
+}
+
+.balance-showcase-card.theme-cloud {
+  color: #17253b;
+  background: linear-gradient(150deg, #fff, #dbe2ea);
+  border-color: #d7dee7;
+}
+
+.showcase-card-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.showcase-card-brand .logo-mark {
+  width: 17px;
+  height: 17px;
+  border-width: 5px;
+}
+
+.showcase-card-title {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 55px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.showcase-card-total {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  margin-top: 24px;
+  gap: 9px;
+}
+
+.showcase-card-total span,
+.showcase-card-meta span {
+  font-size: 10px;
+  opacity: 0.65;
+}
+
+.showcase-card-total strong {
+  font-size: clamp(38px, 4vw, 52px);
+  line-height: 1.12;
+  letter-spacing: -0.055em;
+}
+
+.showcase-card-meta {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.theme-cream .showcase-card-meta,
+.theme-cloud .showcase-card-meta {
+  border-top-color: rgba(20, 38, 64, 0.14);
+}
+
+.showcase-card-meta > div {
+  display: grid;
+  gap: 7px;
+}
+
+.showcase-card-meta strong {
+  font-size: 18px;
+}
+
+.showcase-banks {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  margin-top: 18px;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.showcase-banks span {
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.theme-cream .showcase-banks span,
+.theme-cloud .showcase-banks span {
+  background: rgba(255, 255, 255, 0.38);
+  border-color: rgba(20, 38, 64, 0.1);
+}
+
+.showcase-message {
+  width: min(560px, 100%);
+  margin-top: 20px;
+}
+
+.showcase-actions {
+  display: grid;
+  width: min(560px, 100%);
+  margin-top: 24px;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.showcase-actions button {
+  min-height: 52px;
+  font-size: 12px;
+}
+
 @media (max-width: 820px) {
   .page-shell {
     width: calc(100vw - 20px);
@@ -833,6 +1146,28 @@ button {
   .account-list {
     grid-template-columns: 1fr;
   }
+
+  .showcase-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .showcase-controls {
+    padding: 30px;
+    border-right: 0;
+    border-bottom: 1px solid #e5eaf1;
+  }
+
+  .back-button {
+    margin-bottom: 30px;
+  }
+
+  .showcase-source {
+    margin-top: 28px;
+  }
+
+  .showcase-preview {
+    padding: 38px 24px;
+  }
 }
 
 @media (max-width: 520px) {
@@ -883,10 +1218,15 @@ button {
 
   .account-actions {
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .account-actions button {
-    flex: 1;
+    flex: 1 1 calc(50% - 5px);
+  }
+
+  .account-actions .showcase-entry-button {
+    flex-basis: 100%;
   }
 
   .account-summary {
@@ -910,5 +1250,26 @@ button {
 
   .balance-grid strong {
     font-size: 15px;
+  }
+
+  .showcase-controls {
+    padding: 26px 20px;
+  }
+
+  .showcase-preview {
+    padding: 30px 14px;
+  }
+
+  .balance-showcase-card {
+    min-height: 480px;
+    padding: 28px 24px;
+  }
+
+  .showcase-card-total strong {
+    font-size: 37px;
+  }
+
+  .showcase-actions {
+    grid-template-columns: 1fr;
   }
 }

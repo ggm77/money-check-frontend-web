@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { api, ApiError, type Account, type AuthResponse, type Balance } from './api'
 import './App.css'
 
-type View = 'landing' | 'login' | 'assets'
+type View = 'landing' | 'login' | 'assets' | 'showcase'
 type AuthMode = 'login' | 'signup'
+type ShowcaseTheme = 'navy' | 'blue' | 'cream' | 'cloud'
 
 type AuthSession = {
   accessToken: string
@@ -21,7 +22,9 @@ type IconName =
   | 'logout'
   | 'profile'
   | 'refresh'
+  | 'share'
   | 'shield'
+  | 'sparkle'
   | 'wallet'
 
 type BalanceState =
@@ -34,7 +37,7 @@ const AUTH_STORAGE_KEY = 'assetview-session'
 
 function getViewFromHash(): View {
   const hash = window.location.hash.replace('#', '')
-  return ['landing', 'login', 'assets'].includes(hash) ? hash as View : 'landing'
+  return ['landing', 'login', 'assets', 'showcase'].includes(hash) ? hash as View : 'landing'
 }
 
 const iconPaths: Record<IconName, ReactNode> = {
@@ -82,12 +85,21 @@ const iconPaths: Record<IconName, ReactNode> = {
       <path d="M18.2 9A7 7 0 0 0 6.1 6.5L4 12m2 3a7 7 0 0 0 12 2.5L20 12" />
     </>
   ),
+  share: (
+    <>
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.5m-7.6 6.9 7.6 4.5" />
+    </>
+  ),
   shield: (
     <>
       <path d="M12 2 4 5v6c0 5.1 3.1 8.9 8 11 4.9-2.1 8-5.9 8-11V5l-8-3Z" />
       <path d="m8.5 12 2.2 2.2 4.8-5" />
     </>
   ),
+  sparkle: <path d="m12 2 1.7 5.3L19 9l-5.3 1.7L12 16l-1.7-5.3L5 9l5.3-1.7L12 2Zm6 13 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" />,
   wallet: (
     <>
       <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H19v16H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3" />
@@ -588,6 +600,14 @@ function AccountsPage({
             <h1>연결 계좌</h1>
           </div>
           <div className="account-actions">
+            <button
+              className="secondary-button compact-button showcase-entry-button"
+              onClick={() => navigate('showcase')}
+              type="button"
+            >
+              <Icon name="sparkle" size={17} />
+              잔액 자랑하기
+            </button>
             <button className="secondary-button compact-button" onClick={() => void loadAccounts()} type="button">
               <Icon name="refresh" size={17} />
               새로고침
@@ -648,15 +668,246 @@ function AccountsPage({
   )
 }
 
+function ShowcasePage({
+  session,
+  navigate,
+  onLogout,
+}: {
+  session: AuthSession
+  navigate: (view: View) => void
+  onLogout: () => void
+}) {
+  const [accounts, setAccounts] = useState<Account[] | null>(null)
+  const [balances, setBalances] = useState<Record<string, BalanceState>>({})
+  const [theme, setTheme] = useState<ShowcaseTheme>('navy')
+  const [isLoading, setIsLoading] = useState(true)
+  const [serverError, setServerError] = useState(false)
+  const [message, setMessage] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const loadShowcase = useCallback(async () => {
+    setIsLoading(true)
+    setServerError(false)
+    setMessage('')
+
+    try {
+      const response = await api.getAccounts(session.accessToken)
+      setAccounts(response.accounts)
+      setBalances(Object.fromEntries(
+        response.accounts.map((account) => [account.fintechUseNum, { status: 'loading' }]),
+      ))
+
+      await Promise.all(response.accounts.map(async (account) => {
+        try {
+          const balance = await api.getBalance(session.accessToken, account.fintechUseNum)
+          setBalances((current) => ({
+            ...current,
+            [account.fintechUseNum]: { status: 'success', data: balance },
+          }))
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            onLogout()
+            return
+          }
+          const nextState: BalanceState = error instanceof ApiError && error.isServerError
+            ? { status: 'server-error' }
+            : { status: 'error', message: getApiErrorMessage(error) }
+          setBalances((current) => ({
+            ...current,
+            [account.fintechUseNum]: nextState,
+          }))
+        }
+      }))
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        onLogout()
+        return
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        setAccounts([])
+        setMessage(error.message)
+      } else {
+        setAccounts(null)
+        setServerError(error instanceof ApiError && error.isServerError)
+        setMessage(getApiErrorMessage(error))
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [onLogout, session.accessToken])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadShowcase()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadShowcase])
+
+  const totalBalance = useMemo<number | 'loading' | 'error' | 'server-error'>(() => {
+    if (serverError) return 'server-error'
+    if (!accounts || isLoading) return 'loading'
+    if (accounts.length === 0) return 'error'
+
+    const states = accounts.map((account) => balances[account.fintechUseNum])
+    if (states.some((state) => state?.status === 'server-error')) return 'server-error'
+    if (states.some((state) => !state || state.status === 'loading')) return 'loading'
+
+    const values = states
+      .filter((state): state is Extract<BalanceState, { status: 'success' }> => state.status === 'success')
+      .map((state) => state.data.balanceAmt)
+      .filter((value): value is number => value !== null)
+    return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) : 'error'
+  }, [accounts, balances, isLoading, serverError])
+
+  const bankNames = useMemo(
+    () => [...new Set((accounts ?? []).map((account) => account.bankName))],
+    [accounts],
+  )
+
+  const totalLabel = totalBalance === 'server-error'
+    ? '-1'
+    : totalBalance === 'loading'
+      ? '조회 중'
+      : totalBalance === 'error'
+        ? '-'
+        : formatWon(totalBalance)
+
+  const copyShowcase = async () => {
+    if (typeof totalBalance !== 'number') return
+    const shareText = [
+      `내 오픈뱅킹 계좌 잔액은 ${formatWon(totalBalance)}입니다.`,
+      `연결 계좌 ${accounts?.length ?? 0}개`,
+      bankNames.length > 0 ? `연결 은행: ${bankNames.join(', ')}` : '',
+    ].filter(Boolean).join('\n')
+
+    try {
+      await navigator.clipboard.writeText(shareText)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setMessage('공유 문구를 복사하지 못했습니다.')
+    }
+  }
+
+  const themes: Array<{ key: ShowcaseTheme; label: string }> = [
+    { key: 'navy', label: '미드나잇' },
+    { key: 'blue', label: '블루' },
+    { key: 'cream', label: '크림' },
+    { key: 'cloud', label: '클라우드' },
+  ]
+
+  return (
+    <main className="page-shell showcase-page">
+      <AppHeader email={session.email} navigate={navigate} onLogout={onLogout} />
+      <section className="showcase-layout">
+        <aside className="showcase-controls">
+          <button className="back-button" onClick={() => navigate('assets')} type="button">
+            <Icon name="arrow" size={16} />
+            연결 계좌로 돌아가기
+          </button>
+          <div>
+            <span className="eyebrow">BALANCE SHOWCASE</span>
+            <h1>잔액 자랑 카드</h1>
+            <p>백엔드에서 조회한 실제 계좌 잔액 합계를 카드로 보여줍니다.</p>
+          </div>
+
+          <fieldset>
+            <legend>카드 배경</legend>
+            <div className="showcase-theme-list">
+              {themes.map((item) => (
+                <button
+                  aria-label={`${item.label} 테마 선택`}
+                  className={`showcase-theme showcase-theme-${item.key}${theme === item.key ? ' active' : ''}`}
+                  key={item.key}
+                  onClick={() => setTheme(item.key)}
+                  type="button"
+                />
+              ))}
+            </div>
+            <span className="selected-theme">
+              {themes.find((item) => item.key === theme)?.label}
+            </span>
+          </fieldset>
+
+          <div className="showcase-source">
+            <Icon name="shield" size={19} />
+            <span>
+              <strong>API 조회 데이터</strong>
+              <small>계좌 목록과 잔액 응답만 표시합니다.</small>
+            </span>
+          </div>
+        </aside>
+
+        <div className="showcase-preview">
+          <article className={`balance-showcase-card theme-${theme}`}>
+            <div className="showcase-card-brand">
+              <span className="logo-mark"><span /></span>
+              AssetView
+            </div>
+            <div className="showcase-card-title">
+              <Icon name="wallet" size={22} />
+              오픈뱅킹 계좌 잔액
+            </div>
+            <div className="showcase-card-total">
+              <span>조회된 계좌 잔액 합계</span>
+              <strong>{totalLabel}</strong>
+            </div>
+            <div className="showcase-card-meta">
+              <div>
+                <span>연결 계좌</span>
+                <strong>{serverError ? '-1' : accounts?.length ?? (isLoading ? '조회 중' : '-')}</strong>
+              </div>
+              <div>
+                <span>연결 은행</span>
+                <strong>{serverError ? '-1' : bankNames.length || (isLoading ? '조회 중' : '-')}</strong>
+              </div>
+            </div>
+            {bankNames.length > 0 && (
+              <div className="showcase-banks">
+                {bankNames.map((bankName) => <span key={bankName}>{bankName}</span>)}
+              </div>
+            )}
+          </article>
+
+          {message && (
+            <div className={`api-message showcase-message${serverError ? ' server-error' : ''}`}>
+              {serverError && <strong>-1</strong>}
+              <span>{message}</span>
+            </div>
+          )}
+
+          <div className="showcase-actions">
+            <button className="secondary-button" onClick={() => void loadShowcase()} type="button">
+              <Icon name="refresh" size={18} />
+              잔액 다시 조회
+            </button>
+            <button
+              className="primary-button"
+              disabled={typeof totalBalance !== 'number'}
+              onClick={() => void copyShowcase()}
+              type="button"
+            >
+              <Icon name="share" size={18} />
+              {copied ? '복사 완료' : '공유 문구 복사'}
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function App() {
   const [session, setSession] = useState<AuthSession | null>(loadStoredSession)
   const [view, setView] = useState<View>(() => {
     const requestedView = getViewFromHash()
-    return requestedView === 'assets' && !loadStoredSession() ? 'login' : requestedView
+    return ['assets', 'showcase'].includes(requestedView) && !loadStoredSession()
+      ? 'login'
+      : requestedView
   })
 
   const navigate = useCallback((nextView: View) => {
-    const destination = nextView === 'assets' && !session ? 'login' : nextView
+    const destination = ['assets', 'showcase'].includes(nextView) && !session ? 'login' : nextView
     setView(destination)
     window.history.pushState(null, '', `#${destination}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -679,13 +930,13 @@ function App() {
   useEffect(() => {
     if (!window.location.hash) {
       window.history.replaceState(null, '', session ? '#assets' : '#landing')
-    } else if (window.location.hash === '#assets' && !loadStoredSession()) {
+    } else if (['#assets', '#showcase'].includes(window.location.hash) && !loadStoredSession()) {
       window.history.replaceState(null, '', '#login')
     }
 
     const handleNavigation = () => {
       const requestedView = getViewFromHash()
-      if (requestedView === 'assets' && !loadStoredSession()) {
+      if (['assets', 'showcase'].includes(requestedView) && !loadStoredSession()) {
         setSession(null)
         setView('login')
         window.history.replaceState(null, '', '#login')
@@ -720,6 +971,9 @@ function App() {
         onAuthenticated={authenticated}
       />
     )
+  }
+  if (view === 'showcase') {
+    return <ShowcasePage navigate={navigate} onLogout={logout} session={session} />
   }
   return <AccountsPage navigate={navigate} onLogout={logout} session={session} />
 }
