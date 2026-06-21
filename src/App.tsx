@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import './App.css'
 
-type View = 'landing' | 'profile' | 'assets' | 'share'
+type View = 'landing' | 'login' | 'profile' | 'assets' | 'share'
 
 type IconName =
   | 'arrow'
@@ -137,9 +137,11 @@ function Avatar({ small = false }: { small?: boolean }) {
 function Header({
   active,
   navigate,
+  onLogout,
 }: {
   active: View
   navigate: (view: View) => void
+  onLogout: () => void
 }) {
   return (
     <header className="site-header">
@@ -161,9 +163,9 @@ function Header({
           <Icon name="home" size={18} />
           연결 자산
         </button>
-        <button type="button">
-          <Icon name="gear" size={18} />
-          설정
+        <button onClick={onLogout} type="button">
+          <Icon name="lock" size={18} />
+          로그아웃
         </button>
         <Avatar small />
       </nav>
@@ -207,8 +209,8 @@ function Landing({ navigate }: { navigate: (view: View) => void }) {
           <button type="button">서비스 소개</button>
           <button type="button">혜택</button>
           <button type="button">FAQ</button>
-          <button className="nav-cta" onClick={() => navigate('profile')} type="button">
-            앱 둘러보기
+          <button className="nav-cta" onClick={() => navigate('login')} type="button">
+            로그인
           </button>
         </nav>
       </div>
@@ -245,7 +247,7 @@ function Landing({ navigate }: { navigate: (view: View) => void }) {
             ))}
           </div>
 
-          <button className="primary-button landing-button" onClick={() => navigate('profile')} type="button">
+          <button className="primary-button landing-button" onClick={() => navigate('login')} type="button">
             자산 인증 시작하기
             <Icon name="arrow" size={18} />
           </button>
@@ -261,10 +263,184 @@ function Landing({ navigate }: { navigate: (view: View) => void }) {
   )
 }
 
-function Profile({ navigate }: { navigate: (view: View) => void }) {
+function Login({
+  navigate,
+  onLogin,
+}: {
+  navigate: (view: View) => void
+  onLogin: (email: string, remember: boolean) => void
+}) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [remember, setRemember] = useState(true)
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError('')
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('올바른 이메일 주소를 입력해주세요.')
+      return
+    }
+    if (password.length < 8) {
+      setError('비밀번호는 8자 이상 입력해주세요.')
+      return
+    }
+
+    setIsSubmitting(true)
+    window.setTimeout(() => {
+      if (email !== 'demo@assetview.kr' || password !== 'assetview123') {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+        setIsSubmitting(false)
+        return
+      }
+      onLogin(email, remember)
+    }, 550)
+  }
+
+  const fillDemoAccount = () => {
+    setEmail('demo@assetview.kr')
+    setPassword('assetview123')
+    setError('')
+  }
+
+  return (
+    <main className="login-page page-shell">
+      <header className="login-header">
+        <Logo onClick={() => navigate('landing')} />
+        <button onClick={() => navigate('landing')} type="button">
+          홈으로
+          <Icon name="arrow" size={16} />
+        </button>
+      </header>
+
+      <section className="login-layout">
+        <div className="login-visual">
+          <span className="login-visual-glow" />
+          <div className="login-visual-content">
+            <span className="section-kicker light">
+              <Icon name="shield" size={22} />
+              Private & Secure
+            </span>
+            <h1>
+              내 자산을 가장
+              <br />
+              안전하게 확인하세요
+            </h1>
+            <p>하나의 계정으로 자산 인증부터 프로필 공유까지 관리할 수 있습니다.</p>
+            <div className="login-security-list">
+              <span><Icon name="lock" size={18} /> 비밀번호 암호화 보호</span>
+              <span><Icon name="shield" size={18} /> 금융 데이터 분리 보관</span>
+              <span><Icon name="eye" size={18} /> 공유 범위 직접 설정</span>
+            </div>
+          </div>
+          <div className="login-mini-card">
+            <div>
+              <span>검증된 총 자산</span>
+              <strong>128,450,000<small>원</small></strong>
+            </div>
+            <Icon name="badge" size={28} />
+          </div>
+        </div>
+
+        <div className="login-form-wrap">
+          <div className="login-form-heading">
+            <span className="mobile-login-logo"><Logo onClick={() => navigate('landing')} /></span>
+            <span className="eyebrow">WELCOME BACK</span>
+            <h2>AssetView 로그인</h2>
+            <p>등록한 이메일과 비밀번호를 입력해주세요.</p>
+          </div>
+
+          <form className="login-form" onSubmit={submit}>
+            <label>
+              이메일
+              <span className="login-input">
+                <Icon name="profile" size={18} />
+                <input
+                  autoComplete="email"
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@example.com"
+                  type="email"
+                  value={email}
+                />
+              </span>
+            </label>
+
+            <label>
+              비밀번호
+              <span className="login-input">
+                <Icon name="lock" size={18} />
+                <input
+                  autoComplete="current-password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="8자 이상 입력"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                />
+                <button
+                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                  onClick={() => setShowPassword((current) => !current)}
+                  type="button"
+                >
+                  <Icon name="eye" size={18} />
+                </button>
+              </span>
+            </label>
+
+            <div className="login-options">
+              <label className="remember-option">
+                <input
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                  type="checkbox"
+                />
+                <span><Icon name="check" size={12} /></span>
+                로그인 상태 유지
+              </label>
+              <button onClick={() => setError('관리자에게 비밀번호 재설정을 요청해주세요.')} type="button">
+                비밀번호 찾기
+              </button>
+            </div>
+
+            {error && <p className="login-error" role="alert">{error}</p>}
+
+            <button className="primary-button login-submit" disabled={isSubmitting} type="submit">
+              {isSubmitting ? '로그인 중...' : '로그인'}
+              {!isSubmitting && <Icon name="arrow" size={18} />}
+            </button>
+          </form>
+
+          <div className="demo-account">
+            <span>데모 계정</span>
+            <code>demo@assetview.kr / assetview123</code>
+            <button onClick={fillDemoAccount} type="button">자동 입력</button>
+          </div>
+
+          <p className="login-signup">
+            아직 계정이 없으신가요?
+            <button onClick={() => setError('회원가입 기능은 다음 단계에서 연결할 수 있습니다.')} type="button">
+              계정 만들기
+            </button>
+          </p>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function Profile({
+  navigate,
+  onLogout,
+}: {
+  navigate: (view: View) => void
+  onLogout: () => void
+}) {
   return (
     <main className="app-page page-shell">
-      <Header active="profile" navigate={navigate} />
+      <Header active="profile" navigate={navigate} onLogout={onLogout} />
       <section className="profile-content">
         <div className="profile-intro">
           <div className="section-kicker">
@@ -376,7 +552,13 @@ const assetGroups: AssetGroup[] = [
   },
 ]
 
-function Assets({ navigate }: { navigate: (view: View) => void }) {
+function Assets({
+  navigate,
+  onLogout,
+}: {
+  navigate: (view: View) => void
+  onLogout: () => void
+}) {
   const [filter, setFilter] = useState('all')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [notice, setNotice] = useState('')
@@ -403,7 +585,7 @@ function Assets({ navigate }: { navigate: (view: View) => void }) {
 
   return (
     <main className="app-page page-shell">
-      <Header active="assets" navigate={navigate} />
+      <Header active="assets" navigate={navigate} onLogout={onLogout} />
       <section className="assets-content">
         <div className="assets-title-row">
           <div>
@@ -608,23 +790,65 @@ function ShareCard({ navigate }: { navigate: (view: View) => void }) {
 function App() {
   const getViewFromHash = (): View => {
     const hash = window.location.hash.replace('#', '')
-    return ['landing', 'profile', 'assets', 'share'].includes(hash)
+    return ['landing', 'login', 'profile', 'assets', 'share'].includes(hash)
       ? hash as View
       : 'landing'
   }
+  const hasStoredSession = () => {
+    return localStorage.getItem('assetview-auth') === 'true'
+      || sessionStorage.getItem('assetview-auth') === 'true'
+  }
   const [view, setView] = useState<View>(getViewFromHash)
+  const [isAuthenticated, setIsAuthenticated] = useState(hasStoredSession)
 
   const navigate = (nextView: View) => {
-    setView(nextView)
-    window.history.pushState(null, '', `#${nextView}`)
+    const protectedViews: View[] = ['profile', 'assets', 'share']
+    const destination = protectedViews.includes(nextView) && !isAuthenticated
+      ? 'login'
+      : nextView
+    setView(destination)
+    window.history.pushState(null, '', `#${destination}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const login = (email: string, remember: boolean) => {
+    const storage = remember ? localStorage : sessionStorage
+    localStorage.removeItem('assetview-auth')
+    localStorage.removeItem('assetview-email')
+    sessionStorage.removeItem('assetview-auth')
+    sessionStorage.removeItem('assetview-email')
+    storage.setItem('assetview-auth', 'true')
+    storage.setItem('assetview-email', email)
+    setIsAuthenticated(true)
+    setView('profile')
+    window.history.replaceState(null, '', '#profile')
+  }
+
+  const logout = () => {
+    localStorage.removeItem('assetview-auth')
+    localStorage.removeItem('assetview-email')
+    sessionStorage.removeItem('assetview-auth')
+    sessionStorage.removeItem('assetview-email')
+    setIsAuthenticated(false)
+    setView('login')
+    window.history.replaceState(null, '', '#login')
   }
 
   useEffect(() => {
     if (!window.location.hash) {
       window.history.replaceState(null, '', '#landing')
     }
-    const handleHashChange = () => setView(getViewFromHash())
+    const handleHashChange = () => {
+      const requestedView = getViewFromHash()
+      const protectedViews: View[] = ['profile', 'assets', 'share']
+      if (protectedViews.includes(requestedView) && !hasStoredSession()) {
+        setView('login')
+        window.history.replaceState(null, '', '#login')
+        return
+      }
+      setView(requestedView)
+    }
+    handleHashChange()
     window.addEventListener('hashchange', handleHashChange)
     window.addEventListener('popstate', handleHashChange)
     return () => {
@@ -634,8 +858,9 @@ function App() {
   }, [])
 
   if (view === 'landing') return <Landing navigate={navigate} />
-  if (view === 'profile') return <Profile navigate={navigate} />
-  if (view === 'assets') return <Assets navigate={navigate} />
+  if (view === 'login') return <Login navigate={navigate} onLogin={login} />
+  if (view === 'profile') return <Profile navigate={navigate} onLogout={logout} />
+  if (view === 'assets') return <Assets navigate={navigate} onLogout={logout} />
   return <ShareCard navigate={navigate} />
 }
 
