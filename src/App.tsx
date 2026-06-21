@@ -321,18 +321,283 @@ function Profile({ navigate }: { navigate: (view: View) => void }) {
   )
 }
 
-function Placeholder({ navigate, view }: { navigate: (view: View) => void; view: View }) {
+type AssetItem = {
+  color: string
+  institution: string
+  product: string
+  value: string
+  change?: string
+  symbol: string
+}
+
+type AssetGroup = {
+  key: string
+  label: string
+  total: string
+  items: AssetItem[]
+}
+
+const assetGroups: AssetGroup[] = [
+  {
+    key: 'deposit',
+    label: '예금 · 2개',
+    total: '25,300,000원',
+    items: [
+      { color: '#1672e9', institution: '국민은행', product: '입출금통장', value: '12,300,000원', change: '+1.5%', symbol: 'K' },
+      { color: '#2564d9', institution: '신한은행', product: '저축 · 예금', value: '6,050,000원', change: '+2.1%', symbol: 'S' },
+      { color: '#1748d2', institution: '우리은행', product: '적금', value: '6,950,000원', change: '+1.2%', symbol: 'W' },
+    ],
+  },
+  {
+    key: 'investment',
+    label: '투자',
+    total: '73,300,000원',
+    items: [
+      { color: '#16a0ef', institution: 'NH투자증권', product: '종합 계좌', value: '34,150,000원', change: '+2.7%', symbol: 'N' },
+      { color: '#5932bf', institution: '삼성증권', product: '중개 (ISA)', value: '12,020,000원', change: '+1.9%', symbol: 'S' },
+      { color: '#17213f', institution: '키움증권', product: '선물옵션', value: '27,130,000원', change: '+1.7%', symbol: 'K' },
+    ],
+  },
+  {
+    key: 'insurance',
+    label: '보험 · 1개',
+    total: '20,950,000원',
+    items: [
+      { color: '#1f91e9', institution: '삼성화재', product: '종신보험', value: '12,950,000원', change: '+0.6%', symbol: 'S' },
+    ],
+  },
+  {
+    key: 'other',
+    label: '기타',
+    total: '8,900,000원',
+    items: [
+      { color: '#6a7a91', institution: '부동산 보증금', product: '임차 보증금', value: '8,900,000원', symbol: 'H' },
+    ],
+  },
+]
+
+function Assets({ navigate }: { navigate: (view: View) => void }) {
+  const [filter, setFilter] = useState('all')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [notice, setNotice] = useState('')
+  const tabs = [
+    ['all', '전체 자산'],
+    ['deposit', '예금'],
+    ['investment', '주식'],
+    ['card', '카드'],
+    ['insurance', '보험'],
+    ['other', '기타'],
+  ]
+  const visibleGroups = filter === 'all'
+    ? assetGroups
+    : assetGroups.filter((group) => group.key === filter)
+
+  const refresh = () => {
+    setIsRefreshing(true)
+    window.setTimeout(() => {
+      setIsRefreshing(false)
+      setNotice('자산 정보가 최신 상태입니다.')
+      window.setTimeout(() => setNotice(''), 2200)
+    }, 700)
+  }
+
   return (
     <main className="app-page page-shell">
-      <Header active={view} navigate={navigate} />
-      <div className="placeholder">
-        <Icon name={view === 'assets' ? 'bank' : 'card'} size={34} />
-        <h1>{view === 'assets' ? '연결 자산' : '공유 카드 만들기'}</h1>
-        <p>다음 구현 단계에서 완성됩니다.</p>
-        <button className="secondary-button" onClick={() => navigate('profile')} type="button">
-          프로필로 돌아가기
+      <Header active="assets" navigate={navigate} />
+      <section className="assets-content">
+        <div className="assets-title-row">
+          <div>
+            <h1>연결 자산</h1>
+            <p>내 자산을 한눈에 안전하게 관리해요.</p>
+          </div>
+          <button
+            className="add-asset-button"
+            onClick={() => setNotice('새 자산 연결 기능을 준비하고 있습니다.')}
+            type="button"
+          >
+            <Icon name="plus" size={17} />
+            자산 연결하기
+          </button>
+        </div>
+
+        <div className="assets-summary">
+          <div><span>총 자산 (예상)</span><strong>128,450,000원</strong></div>
+          <div><span>연결 기관 수</span><strong>4개</strong></div>
+          <div><span>Last 업데이트</span><strong>5일 전</strong></div>
+          <button
+            aria-label="자산 새로고침"
+            className={isRefreshing ? 'refreshing' : ''}
+            onClick={refresh}
+            type="button"
+          >
+            <Icon name="refresh" size={20} />
+          </button>
+        </div>
+
+        <div className="asset-tabs" role="tablist" aria-label="자산 종류">
+          {tabs.map(([key, label]) => (
+            <button
+              aria-selected={filter === key}
+              className={filter === key ? 'active' : ''}
+              key={key}
+              onClick={() => setFilter(key)}
+              role="tab"
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="asset-groups">
+          {visibleGroups.length > 0 ? visibleGroups.map((group) => (
+            <article className="asset-group" key={group.key}>
+              <div className="asset-group-heading">
+                <strong>{group.label}</strong>
+                <strong>{group.total}</strong>
+              </div>
+              {group.items.map((item) => (
+                <div className="asset-row" key={`${group.key}-${item.institution}`}>
+                  <span className="institution-logo" style={{ backgroundColor: item.color }}>
+                    {item.symbol}
+                  </span>
+                  <strong>{item.institution}</strong>
+                  <span>{item.product}</span>
+                  <strong>{item.value}</strong>
+                  {item.change && <em>{item.change}</em>}
+                </div>
+              ))}
+            </article>
+          )) : (
+            <div className="empty-assets">
+              <Icon name="card" size={28} />
+              <strong>연결된 카드 자산이 없습니다</strong>
+              <span>자산 연결하기에서 새로운 기관을 추가해보세요.</span>
+            </div>
+          )}
+        </div>
+
+        <footer className="asset-footer">
+          <span><Icon name="shield" size={16} /> 연결 금융 정보는 256bit 암호화로 안전하게 보호됩니다.</span>
+          <button type="button">보안 자세히 보기 <Icon name="chevron" size={15} /></button>
+        </footer>
+      </section>
+      {notice && <div className="toast">{notice}</div>}
+    </main>
+  )
+}
+
+type ShareOption = 'total' | 'name' | 'date' | 'badge'
+
+function ShareCard({ navigate }: { navigate: (view: View) => void }) {
+  const [theme, setTheme] = useState('navy')
+  const [options, setOptions] = useState<Record<ShareOption, boolean>>({
+    total: true,
+    name: true,
+    date: true,
+    badge: true,
+  })
+  const [notice, setNotice] = useState('')
+  const themes = [
+    ['blue', '딥 네이비'],
+    ['navy', '미드나잇'],
+    ['cream', '화이트'],
+    ['cloud', '클라우드'],
+  ]
+
+  const toggleOption = (key: ShareOption) => {
+    setOptions((current) => ({ ...current, [key]: !current[key] }))
+  }
+
+  return (
+    <main className="app-page page-shell">
+      <header className="share-header">
+        <Logo onClick={() => navigate('landing')} />
+        <div className="share-steps" aria-label="공유 카드 제작 단계">
+          <span className="active"><b>1</b> 카드 선택</span>
+          <i />
+          <span><b>2</b> 스타일 선택</span>
+          <i />
+          <span><b>3</b> 공유 옵션</span>
+        </div>
+        <button className="reset-button" onClick={() => setTheme('navy')} type="button">
+          카드 리셋 <Icon name="refresh" size={16} />
         </button>
-      </div>
+      </header>
+
+      <section className="share-builder">
+        <aside className="share-controls">
+          <div>
+            <h1>공유 카드 만들기</h1>
+            <p>나만의 스타일로 인증 프로필을 디자인하고 공유해보세요.</p>
+          </div>
+
+          <fieldset>
+            <legend>카드 배경</legend>
+            <div className="theme-list">
+              {themes.map(([key, label]) => (
+                <button
+                  aria-label={`${label} 배경 선택`}
+                  className={`theme-swatch theme-${key}${theme === key ? ' active' : ''}`}
+                  key={key}
+                  onClick={() => setTheme(key)}
+                  type="button"
+                />
+              ))}
+            </div>
+            <span className="theme-name">
+              {themes.find(([key]) => key === theme)?.[1]}
+            </span>
+          </fieldset>
+
+          <fieldset>
+            <legend>표시 항목</legend>
+            <div className="option-list">
+              {([
+                ['total', '총 자산'],
+                ['name', '보유 자산'],
+                ['date', '승인일'],
+                ['badge', '인증 배지'],
+              ] as Array<[ShareOption, string]>).map(([key, label]) => (
+                <label key={key}>
+                  <input checked={options[key]} onChange={() => toggleOption(key)} type="checkbox" />
+                  <span><Icon name="check" size={13} /></span>
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </aside>
+
+        <div className={`share-preview preview-theme-${theme}`}>
+          <VerifiedCard compact />
+          <div className="share-preview-actions">
+            <button className="secondary-button" onClick={() => navigate('profile')} type="button">
+              <Icon name="profile" size={19} />
+              내 프로필 저장
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => {
+                setNotice('공유 링크가 복사되었습니다.')
+                navigator.clipboard?.writeText(window.location.href)
+                window.setTimeout(() => setNotice(''), 2200)
+              }}
+              type="button"
+            >
+              <Icon name="sparkle" size={19} />
+              공유하기
+            </button>
+          </div>
+          <div className="share-card-overlay">
+            {!options.badge && <style>{'.share-preview .verified-label{visibility:hidden}'}</style>}
+            {!options.name && <style>{'.share-preview .verified-name,.share-preview .verified-card>p{visibility:hidden}'}</style>}
+            {!options.total && <style>{'.share-preview .verified-total{visibility:hidden}'}</style>}
+            {!options.date && <style>{'.share-preview .verified-card time{visibility:hidden}'}</style>}
+          </div>
+        </div>
+      </section>
+      {notice && <div className="toast">{notice}</div>}
     </main>
   )
 }
@@ -347,7 +612,8 @@ function App() {
 
   if (view === 'landing') return <Landing navigate={navigate} />
   if (view === 'profile') return <Profile navigate={navigate} />
-  return <Placeholder navigate={navigate} view={view} />
+  if (view === 'assets') return <Assets navigate={navigate} />
+  return <ShareCard navigate={navigate} />
 }
 
 export default App
