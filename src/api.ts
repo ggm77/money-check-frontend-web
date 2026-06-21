@@ -1,0 +1,134 @@
+const API_PREFIX = '/api/v1'
+
+export type AuthResponse = {
+  accessToken: string
+  tokenType: string
+  expiresInSeconds: number
+}
+
+export type Account = {
+  fintechUseNum: string
+  bankCodeStd: string
+  bankName: string
+  accountAlias: string
+  accountNumMasked: string
+  accountHolderName: string
+}
+
+export type AccountsResponse = {
+  accounts: Account[]
+}
+
+export type Balance = {
+  fintechUseNum: string
+  bankName: string
+  balanceAmt: number | null
+  availableAmt: number | null
+  accountType: string
+  productName: string
+  apiTranId: string
+  rspCode: string
+  rspMessage: string
+}
+
+export type AuthorizeResponse = {
+  authorizeUrl: string
+}
+
+export type ApiErrorBody = {
+  timestamp?: string
+  httpStatus?: string
+  status?: number
+  error?: string
+  code?: string
+  message?: string
+  path?: string
+}
+
+export class ApiError extends Error {
+  status: number
+  body: ApiErrorBody | null
+
+  constructor(status: number, body: ApiErrorBody | null, fallbackMessage: string) {
+    super(body?.message || fallbackMessage)
+    this.name = 'ApiError'
+    this.status = status
+    this.body = body
+  }
+
+  get isServerError() {
+    return this.status >= 500 && this.status <= 599
+  }
+}
+
+type RequestOptions = {
+  method?: 'GET' | 'POST'
+  token?: string
+  body?: unknown
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const method = options.method ?? 'GET'
+  const response = await fetch(`${API_PREFIX}${path}`, {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  })
+
+  const contentType = response.headers.get('content-type') ?? ''
+  const responseBody = contentType.includes('application/json')
+    ? await response.json() as ApiErrorBody | T
+    : null
+
+  if (!response.ok) {
+    if (response.status >= 500 && response.status <= 599) {
+      console.error('[AssetView API 5xx]', {
+        method,
+        path: `${API_PREFIX}${path}`,
+        status: response.status,
+        response: responseBody,
+      })
+    }
+
+    throw new ApiError(
+      response.status,
+      responseBody as ApiErrorBody | null,
+      `API 요청에 실패했습니다. (${response.status})`,
+    )
+  }
+
+  return responseBody as T
+}
+
+export const api = {
+  signup(email: string, password: string) {
+    return request<AuthResponse>('/auth/signup', {
+      method: 'POST',
+      body: { email, password },
+    })
+  },
+
+  login(email: string, password: string) {
+    return request<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    })
+  },
+
+  getAuthorizeUrl(token: string) {
+    return request<AuthorizeResponse>('/openbanking/authorize', { token })
+  },
+
+  getAccounts(token: string) {
+    return request<AccountsResponse>('/accounts', { token })
+  },
+
+  getBalance(token: string, fintechUseNum: string) {
+    const query = new URLSearchParams({ fintechUseNum })
+    return request<Balance>(`/accounts/balance?${query.toString()}`, { token })
+  },
+}
