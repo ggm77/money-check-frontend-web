@@ -2,8 +2,10 @@ const API_PREFIX = '/api/v1'
 
 export type AuthResponse = {
   accessToken: string
+  refreshToken: string
   tokenType: string
   expiresInSeconds: number
+  refreshTokenExpiresInSeconds: number
 }
 
 export type Account = {
@@ -116,6 +118,13 @@ export const api = {
     return request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: { email, password },
+    })
+  },
+
+  refresh(refreshToken: string) {
+    return request<AuthResponse>('/auth/refresh', {
+      method: 'POST',
+      body: { refreshToken },
     })
   },
 
