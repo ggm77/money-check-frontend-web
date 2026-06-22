@@ -1,8 +1,26 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { api, ApiError, type Account, type AuthResponse, type Balance } from './api'
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type FormEvent } from 'react'
+import {
+  ArrowRight,
+  Check,
+  Eye,
+  Landmark,
+  Link2,
+  Lock,
+  LogOut,
+  RefreshCw,
+  Settings,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  User,
+  Wallet,
+  type LucideProps,
+} from 'lucide-react'
+import { api, ApiError, type Account, type AuthResponse, type Balance, type Profile } from './api'
 import './App.css'
 
-type View = 'landing' | 'login' | 'assets' | 'showcase'
+type View = 'landing' | 'login' | 'assets' | 'showcase' | 'profile'
 type AuthMode = 'login' | 'signup'
 type ShowcaseTheme = 'navy' | 'blue' | 'cream' | 'cloud'
 
@@ -25,9 +43,11 @@ type IconName =
   | 'logout'
   | 'profile'
   | 'refresh'
+  | 'settings'
   | 'share'
   | 'shield'
   | 'sparkle'
+  | 'trash'
   | 'wallet'
 
 type BalanceState =
@@ -42,90 +62,30 @@ const REFRESH_BUFFER_MS = 60_000
 
 function getViewFromHash(): View {
   const hash = window.location.hash.replace('#', '')
-  return ['landing', 'login', 'assets', 'showcase'].includes(hash) ? hash as View : 'landing'
+  return ['landing', 'login', 'assets', 'showcase', 'profile'].includes(hash) ? hash as View : 'landing'
 }
 
-const iconPaths: Record<IconName, ReactNode> = {
-  arrow: <path d="m5 12 14 0m-5-5 5 5-5 5" />,
-  bank: (
-    <>
-      <path d="m3 9 9-5 9 5" />
-      <path d="M5 10v7m4-7v7m6-7v7m4-7v7M3 20h18" />
-    </>
-  ),
-  check: <path d="m5 12 4 4L19 6" />,
-  eye: (
-    <>
-      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-      <circle cx="12" cy="12" r="2.5" />
-    </>
-  ),
-  link: (
-    <>
-      <path d="m10 13 4-4" />
-      <path d="m7.5 15.5-1 1a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0" />
-      <path d="m16.5 8.5 1-1a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0" />
-    </>
-  ),
-  lock: (
-    <>
-      <rect x="4" y="10" width="16" height="11" rx="2" />
-      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-    </>
-  ),
-  logout: (
-    <>
-      <path d="M10 5H5v14h5M14 8l4 4-4 4m-5-4h9" />
-    </>
-  ),
-  profile: (
-    <>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21c.8-4.2 3.4-6.4 8-6.4s7.2 2.2 8 6.4" />
-    </>
-  ),
-  refresh: (
-    <>
-      <path d="M20 7v5h-5M4 17v-5h5" />
-      <path d="M18.2 9A7 7 0 0 0 6.1 6.5L4 12m2 3a7 7 0 0 0 12 2.5L20 12" />
-    </>
-  ),
-  share: (
-    <>
-      <circle cx="18" cy="5" r="2.5" />
-      <circle cx="6" cy="12" r="2.5" />
-      <circle cx="18" cy="19" r="2.5" />
-      <path d="m8.2 10.8 7.6-4.5m-7.6 6.9 7.6 4.5" />
-    </>
-  ),
-  shield: (
-    <>
-      <path d="M12 2 4 5v6c0 5.1 3.1 8.9 8 11 4.9-2.1 8-5.9 8-11V5l-8-3Z" />
-      <path d="m8.5 12 2.2 2.2 4.8-5" />
-    </>
-  ),
-  sparkle: <path d="m12 2 1.7 5.3L19 9l-5.3 1.7L12 16l-1.7-5.3L5 9l5.3-1.7L12 2Zm6 13 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" />,
-  wallet: (
-    <>
-      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H19v16H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3" />
-      <path d="M15 10h6v5h-6a2.5 2.5 0 0 1 0-5Z" />
-    </>
-  ),
+const iconComponents: Record<IconName, ComponentType<LucideProps>> = {
+  arrow: ArrowRight,
+  bank: Landmark,
+  check: Check,
+  eye: Eye,
+  link: Link2,
+  lock: Lock,
+  logout: LogOut,
+  profile: User,
+  refresh: RefreshCw,
+  settings: Settings,
+  share: Share2,
+  shield: ShieldCheck,
+  sparkle: Sparkles,
+  trash: Trash2,
+  wallet: Wallet,
 }
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className="icon"
-      fill="none"
-      height={size}
-      viewBox="0 0 24 24"
-      width={size}
-    >
-      {iconPaths[name]}
-    </svg>
-  )
+  const LucideIcon = iconComponents[name]
+  return <LucideIcon aria-hidden="true" className="icon" size={size} />
 }
 
 function Logo({ onClick }: { onClick: () => void }) {
@@ -400,7 +360,10 @@ function AppHeader({
     <header className="app-header">
       <Logo onClick={() => navigate('assets')} />
       <div className="app-header-actions">
-        <span className="session-email">{email}</span>
+        <button onClick={() => navigate('profile')} type="button">
+          <Icon name="settings" size={18} />
+          {email}
+        </button>
         <button onClick={onLogout} type="button">
           <Icon name="logout" size={18} />
           로그아웃
@@ -762,6 +725,11 @@ function ShowcasePage({
     [accounts],
   )
 
+  const holderName = useMemo(
+    () => (accounts ?? []).map((account) => account.accountHolderName).find(Boolean) ?? '',
+    [accounts],
+  )
+
   const totalLabel = totalBalance === 'server-error'
     ? '-1'
     : totalBalance === 'loading'
@@ -773,7 +741,9 @@ function ShowcasePage({
   const copyShowcase = async () => {
     if (typeof totalBalance !== 'number') return
     const shareText = [
-      `내 오픈뱅킹 계좌 잔액은 ${formatWon(totalBalance)}입니다.`,
+      holderName
+        ? `${holderName}님의 오픈뱅킹 계좌 잔액은 ${formatWon(totalBalance)}입니다.`
+        : `내 오픈뱅킹 계좌 잔액은 ${formatWon(totalBalance)}입니다.`,
       `연결 계좌 ${accounts?.length ?? 0}개`,
       bankNames.length > 0 ? `연결 은행: ${bankNames.join(', ')}` : '',
     ].filter(Boolean).join('\n')
@@ -846,6 +816,13 @@ function ShowcasePage({
               <Icon name="wallet" size={22} />
               오픈뱅킹 계좌 잔액
             </div>
+            {holderName && (
+              <div className="showcase-card-name">
+                <Icon name="profile" size={16} />
+                <span>{holderName}</span>
+                <small>님</small>
+              </div>
+            )}
             <div className="showcase-card-total">
               <span>조회된 계좌 잔액 합계</span>
               <strong>{totalLabel}</strong>
@@ -895,6 +872,425 @@ function ShowcasePage({
   )
 }
 
+type ProfileState =
+  | { status: 'loading' }
+  | { status: 'success'; data: Profile }
+  | { status: 'server-error' }
+  | { status: 'error'; message: string }
+
+function formatJoinedAt(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date)
+}
+
+function ProfilePage({
+  session,
+  navigate,
+  onLogout,
+  onEmailChange,
+}: {
+  session: AuthSession
+  navigate: (view: View) => void
+  onLogout: () => void
+  onEmailChange: (email: string) => void
+}) {
+  const [profileState, setProfileState] = useState<ProfileState>({ status: 'loading' })
+
+  const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
+  const [emailServerError, setEmailServerError] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState(false)
+  const [isChangingEmail, setIsChangingEmail] = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPasswords, setShowPasswords] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordServerError, setPasswordServerError] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteServerError, setDeleteServerError] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleApiError = useCallback((error: unknown) => {
+    if (error instanceof ApiError && error.status === 401) {
+      onLogout()
+      return true
+    }
+    return false
+  }, [onLogout])
+
+  const loadProfile = useCallback(async () => {
+    setProfileState({ status: 'loading' })
+    try {
+      const profile = await api.getProfile(session.accessToken)
+      setProfileState({ status: 'success', data: profile })
+    } catch (error) {
+      if (handleApiError(error)) return
+      setProfileState(
+        error instanceof ApiError && error.isServerError
+          ? { status: 'server-error' }
+          : { status: 'error', message: getApiErrorMessage(error) },
+      )
+    }
+  }, [handleApiError, session.accessToken])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadProfile()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadProfile])
+
+  const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setEmailError('')
+    setEmailServerError(false)
+    setEmailSuccess(false)
+
+    // 서버와 동일하게 공백 제거 후 소문자로 정규화한다.
+    const normalizedEmail = email.trim().toLowerCase()
+    const currentEmail = profileState.status === 'success' ? profileState.data.email : session.email
+    if (normalizedEmail === currentEmail) {
+      setEmailError('현재 이메일과 동일합니다.')
+      return
+    }
+
+    setIsChangingEmail(true)
+    try {
+      await api.changeEmail(session.accessToken, normalizedEmail)
+      onEmailChange(normalizedEmail)
+      setProfileState((current) =>
+        current.status === 'success'
+          ? { status: 'success', data: { ...current.data, email: normalizedEmail } }
+          : current,
+      )
+      setEmailSuccess(true)
+      setEmail('')
+    } catch (error) {
+      if (handleApiError(error)) return
+      setEmailServerError(error instanceof ApiError && error.isServerError)
+      if (error instanceof ApiError && error.status === 409) {
+        setEmailError('이미 사용 중인 이메일입니다.')
+      } else if (error instanceof ApiError && error.status === 400) {
+        setEmailError('올바른 이메일 형식이 아닙니다.')
+      } else {
+        setEmailError(getApiErrorMessage(error))
+      }
+    } finally {
+      setIsChangingEmail(false)
+    }
+  }
+
+  const submitPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setPasswordError('')
+    setPasswordServerError(false)
+    setPasswordSuccess(false)
+
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      setPasswordError('새 비밀번호는 8~72자로 입력해주세요.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError('새 비밀번호가 기존 비밀번호와 같습니다.')
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      await api.changePassword(session.accessToken, currentPassword, newPassword)
+      setPasswordSuccess(true)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error) {
+      if (handleApiError(error)) return
+      setPasswordServerError(error instanceof ApiError && error.isServerError)
+      if (error instanceof ApiError && error.body?.code === 'INVALID_CURRENT_PASSWORD') {
+        setPasswordError('현재 비밀번호가 일치하지 않습니다.')
+      } else {
+        setPasswordError(getApiErrorMessage(error))
+      }
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
+  const deleteAccount = async () => {
+    setDeleteError('')
+    setDeleteServerError(false)
+    setIsDeleting(true)
+    try {
+      await api.deleteAccount(session.accessToken)
+      onLogout()
+    } catch (error) {
+      if (handleApiError(error)) return
+      // 회원이 이미 존재하지 않으면(404) 세션이 무효하므로 탈퇴와 동일하게 로그아웃한다.
+      if (error instanceof ApiError && error.status === 404) {
+        onLogout()
+        return
+      }
+      setDeleteServerError(error instanceof ApiError && error.isServerError)
+      setDeleteError(getApiErrorMessage(error))
+      setIsDeleting(false)
+    }
+  }
+
+  const canSubmitEmail = email.trim().length > 0 && !isChangingEmail
+
+  const canSubmitPassword = currentPassword.length > 0
+    && newPassword.length > 0
+    && confirmPassword.length > 0
+    && !isChangingPassword
+
+  return (
+    <main className="page-shell profile-page">
+      <AppHeader email={session.email} navigate={navigate} onLogout={onLogout} />
+      <section className="profile-content">
+        <button className="back-button" onClick={() => navigate('assets')} type="button">
+          <Icon name="arrow" size={16} />
+          연결 계좌로 돌아가기
+        </button>
+
+        <div className="profile-heading">
+          <span className="eyebrow">ACCOUNT SETTINGS</span>
+          <h1>회원 정보 관리</h1>
+          <p>계정 정보를 확인하고 이메일·비밀번호 변경 또는 회원 탈퇴를 진행할 수 있습니다.</p>
+        </div>
+
+        <article className="profile-card">
+          <div className="profile-card-head">
+            <span className="profile-avatar"><Icon name="profile" size={22} /></span>
+            <div>
+              <h2>내 계정</h2>
+              <p>로그인에 사용하는 기본 정보입니다.</p>
+            </div>
+          </div>
+
+          {profileState.status === 'loading' && (
+            <div className="profile-state">계정 정보를 조회하고 있습니다.</div>
+          )}
+
+          {(profileState.status === 'error' || profileState.status === 'server-error') && (
+            <>
+              <div className={`api-message${profileState.status === 'server-error' ? ' server-error' : ''}`}>
+                {profileState.status === 'server-error' && <strong>-1</strong>}
+                <span>
+                  {profileState.status === 'server-error'
+                    ? '계정 정보를 불러오지 못했습니다.'
+                    : profileState.message}
+                </span>
+              </div>
+              <button className="secondary-button compact-button profile-retry" onClick={() => void loadProfile()} type="button">
+                <Icon name="refresh" size={16} />
+                다시 시도
+              </button>
+            </>
+          )}
+
+          {profileState.status === 'success' && (
+            <dl className="profile-details">
+              <div><dt>회원 번호</dt><dd>{profileState.data.id}</dd></div>
+              <div><dt>이메일</dt><dd>{profileState.data.email}</dd></div>
+              <div><dt>가입일</dt><dd>{formatJoinedAt(profileState.data.createdAt)}</dd></div>
+            </dl>
+          )}
+        </article>
+
+        <article className="profile-card">
+          <div className="profile-card-head">
+            <span className="profile-avatar"><Icon name="profile" size={22} /></span>
+            <div>
+              <h2>이메일 변경</h2>
+              <p>로그인에 사용할 새 이메일을 입력하세요.</p>
+            </div>
+          </div>
+
+          <form className="auth-form profile-form" noValidate onSubmit={submitEmail}>
+            <label>
+              새 이메일
+              <span className="auth-input">
+                <Icon name="profile" size={18} />
+                <input
+                  autoComplete="email"
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="new@example.com"
+                  type="email"
+                  value={email}
+                />
+              </span>
+            </label>
+
+            {emailError && (
+              <div className={`api-error-banner${emailServerError ? ' server-error' : ''}`} role="alert">
+                {emailServerError && <strong>-1</strong>}
+                <span>{emailError}</span>
+              </div>
+            )}
+
+            {emailSuccess && (
+              <div className="api-message profile-success">
+                <Icon name="check" size={16} />
+                <span>이메일이 변경되었습니다.</span>
+              </div>
+            )}
+
+            <button className="primary-button" disabled={!canSubmitEmail} type="submit">
+              {isChangingEmail ? '변경 중...' : '이메일 변경'}
+              {!isChangingEmail && <Icon name="arrow" size={18} />}
+            </button>
+          </form>
+        </article>
+
+        <article className="profile-card">
+          <div className="profile-card-head">
+            <span className="profile-avatar"><Icon name="lock" size={22} /></span>
+            <div>
+              <h2>비밀번호 변경</h2>
+              <p>현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.</p>
+            </div>
+          </div>
+
+          <form className="auth-form profile-form" noValidate onSubmit={submitPassword}>
+            <label>
+              현재 비밀번호
+              <span className="auth-input">
+                <Icon name="lock" size={18} />
+                <input
+                  autoComplete="current-password"
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  placeholder="현재 비밀번호"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={currentPassword}
+                />
+              </span>
+            </label>
+
+            <label>
+              새 비밀번호
+              <span className="auth-input">
+                <Icon name="lock" size={18} />
+                <input
+                  autoComplete="new-password"
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="새 비밀번호"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={newPassword}
+                />
+              </span>
+            </label>
+
+            <label>
+              새 비밀번호 확인
+              <span className="auth-input">
+                <Icon name="lock" size={18} />
+                <input
+                  autoComplete="new-password"
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="새 비밀번호 확인"
+                  type={showPasswords ? 'text' : 'password'}
+                  value={confirmPassword}
+                />
+                <button
+                  aria-label={showPasswords ? '비밀번호 숨기기' : '비밀번호 보기'}
+                  onClick={() => setShowPasswords((current) => !current)}
+                  type="button"
+                >
+                  <Icon name="eye" size={18} />
+                </button>
+              </span>
+            </label>
+
+            {passwordError && (
+              <div className={`api-error-banner${passwordServerError ? ' server-error' : ''}`} role="alert">
+                {passwordServerError && <strong>-1</strong>}
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="api-message profile-success">
+                <Icon name="check" size={16} />
+                <span>비밀번호가 변경되었습니다.</span>
+              </div>
+            )}
+
+            <button className="primary-button" disabled={!canSubmitPassword} type="submit">
+              {isChangingPassword ? '변경 중...' : '비밀번호 변경'}
+              {!isChangingPassword && <Icon name="arrow" size={18} />}
+            </button>
+          </form>
+        </article>
+
+        <article className="profile-card profile-danger">
+          <div className="profile-card-head">
+            <span className="profile-avatar danger"><Icon name="trash" size={22} /></span>
+            <div>
+              <h2>회원 탈퇴</h2>
+              <p>탈퇴하면 계정과 연결된 모든 정보가 삭제되며 되돌릴 수 없습니다.</p>
+            </div>
+          </div>
+
+          {deleteError && (
+            <div className={`api-error-banner${deleteServerError ? ' server-error' : ''}`} role="alert">
+              {deleteServerError && <strong>-1</strong>}
+              <span>{deleteError}</span>
+            </div>
+          )}
+
+          {!isConfirmingDelete ? (
+            <button
+              className="secondary-button profile-delete-button"
+              onClick={() => setIsConfirmingDelete(true)}
+              type="button"
+            >
+              <Icon name="trash" size={18} />
+              회원 탈퇴
+            </button>
+          ) : (
+            <div className="profile-delete-confirm">
+              <p>정말 탈퇴하시겠어요? 이 작업은 되돌릴 수 없습니다.</p>
+              <div className="profile-delete-actions">
+                <button
+                  className="secondary-button compact-button"
+                  disabled={isDeleting}
+                  onClick={() => setIsConfirmingDelete(false)}
+                  type="button"
+                >
+                  취소
+                </button>
+                <button
+                  className="primary-button compact-button profile-delete-button"
+                  disabled={isDeleting}
+                  onClick={() => void deleteAccount()}
+                  type="button"
+                >
+                  <Icon name="trash" size={16} />
+                  {isDeleting ? '탈퇴 중...' : '탈퇴 확정'}
+                </button>
+              </div>
+            </div>
+          )}
+        </article>
+      </section>
+    </main>
+  )
+}
+
 function App() {
   const [session, setSession] = useState<AuthSession | null>(loadStoredSession)
   const [isBootstrapping, setIsBootstrapping] = useState(() => {
@@ -903,13 +1299,13 @@ function App() {
   })
   const [view, setView] = useState<View>(() => {
     const requestedView = getViewFromHash()
-    return ['assets', 'showcase'].includes(requestedView) && !loadStoredSession()
+    return ['assets', 'showcase', 'profile'].includes(requestedView) && !loadStoredSession()
       ? 'login'
       : requestedView
   })
 
   const navigate = useCallback((nextView: View) => {
-    const destination = ['assets', 'showcase'].includes(nextView) && !session ? 'login' : nextView
+    const destination = ['assets', 'showcase', 'profile'].includes(nextView) && !session ? 'login' : nextView
     setView(destination)
     window.history.pushState(null, '', `#${destination}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -927,6 +1323,17 @@ function App() {
     setSession(null)
     setView('login')
     window.history.replaceState(null, '', '#login')
+  }, [])
+
+  const changeEmail = useCallback((email: string) => {
+    setSession((current) => {
+      if (!current) return current
+      const next = { ...current, email }
+      // 토큰을 보관 중인 스토리지에만 갱신된 이메일을 다시 기록한다.
+      const storage = current.remember ? localStorage : sessionStorage
+      storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
   }, [])
 
   const refreshSession = useCallback(async (): Promise<AuthSession | null> => {
@@ -975,13 +1382,13 @@ function App() {
   useEffect(() => {
     if (!window.location.hash) {
       window.history.replaceState(null, '', session ? '#assets' : '#landing')
-    } else if (['#assets', '#showcase'].includes(window.location.hash) && !loadStoredSession()) {
+    } else if (['#assets', '#showcase', '#profile'].includes(window.location.hash) && !loadStoredSession()) {
       window.history.replaceState(null, '', '#login')
     }
 
     const handleNavigation = () => {
       const requestedView = getViewFromHash()
-      if (['assets', 'showcase'].includes(requestedView) && !loadStoredSession()) {
+      if (['assets', 'showcase', 'profile'].includes(requestedView) && !loadStoredSession()) {
         setSession(null)
         setView('login')
         window.history.replaceState(null, '', '#login')
@@ -1026,6 +1433,16 @@ function App() {
   }
   if (view === 'showcase') {
     return <ShowcasePage navigate={navigate} onLogout={logout} session={session} />
+  }
+  if (view === 'profile') {
+    return (
+      <ProfilePage
+        navigate={navigate}
+        onEmailChange={changeEmail}
+        onLogout={logout}
+        session={session}
+      />
+    )
   }
   return <AccountsPage navigate={navigate} onLogout={logout} session={session} />
 }

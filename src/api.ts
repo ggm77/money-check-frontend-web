@@ -37,6 +37,12 @@ export type AuthorizeResponse = {
   authorizeUrl: string
 }
 
+export type Profile = {
+  id: number
+  email: string
+  createdAt: string
+}
+
 export type ApiErrorBody = {
   timestamp?: string
   httpStatus?: string
@@ -64,7 +70,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   token?: string
   body?: unknown
 }
@@ -126,6 +132,30 @@ export const api = {
       method: 'POST',
       body: { refreshToken },
     })
+  },
+
+  getProfile(token: string) {
+    return request<Profile>('/members/me', { token })
+  },
+
+  changeEmail(token: string, email: string) {
+    return request<void>('/members/me/email', {
+      method: 'PATCH',
+      token,
+      body: { email },
+    })
+  },
+
+  changePassword(token: string, currentPassword: string, newPassword: string) {
+    return request<void>('/members/me/password', {
+      method: 'PATCH',
+      token,
+      body: { currentPassword, newPassword },
+    })
+  },
+
+  deleteAccount(token: string) {
+    return request<void>('/members/me', { method: 'DELETE', token })
   },
 
   getAuthorizeUrl(token: string) {
