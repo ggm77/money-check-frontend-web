@@ -252,15 +252,6 @@ function AuthPage({
     setError('')
     setServerError(false)
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('올바른 이메일 주소를 입력해주세요.')
-      return
-    }
-    if (password.length < 8 || password.length > 72) {
-      setError('비밀번호는 8자 이상 72자 이하로 입력해주세요.')
-      return
-    }
-
     setIsSubmitting(true)
     try {
       const normalizedEmail = email.trim().toLowerCase()
@@ -332,14 +323,13 @@ function AuthPage({
             <p>이메일과 비밀번호를 입력해주세요.</p>
           </div>
 
-          <form className="auth-form" onSubmit={submit}>
+          <form className="auth-form" noValidate onSubmit={submit}>
             <label>
               이메일
               <span className="auth-input">
                 <Icon name="profile" size={18} />
                 <input
                   autoComplete="email"
-                  maxLength={255}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@example.com"
                   type="email"
@@ -354,9 +344,8 @@ function AuthPage({
                 <Icon name="lock" size={18} />
                 <input
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  maxLength={72}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="8자 이상 72자 이하"
+                  placeholder="비밀번호"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                 />
