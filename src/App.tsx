@@ -8,8 +8,11 @@ type ShowcaseTheme = 'navy' | 'blue' | 'cream' | 'cloud'
 
 type AuthSession = {
   accessToken: string
+  refreshToken: string
   email: string
   expiresAt: number
+  refreshExpiresAt: number
+  remember: boolean
 }
 
 type IconName =
@@ -34,6 +37,8 @@ type BalanceState =
   | { status: 'error'; message: string }
 
 const AUTH_STORAGE_KEY = 'assetview-session'
+// 액세스 토큰 만료 약간 전에 미리 재발급해 401을 피한다.
+const REFRESH_BUFFER_MS = 60_000
 
 function getViewFromHash(): View {
   const hash = window.location.hash.replace('#', '')
@@ -154,7 +159,7 @@ function loadStoredSession(): AuthSession | null {
 
   try {
     const session = JSON.parse(raw) as AuthSession
-    if (!session.accessToken || session.expiresAt <= Date.now()) {
+    if (!session.accessToken || !session.refreshToken || session.refreshExpiresAt <= Date.now()) {
       clearStoredSession()
       return null
     }
@@ -166,10 +171,14 @@ function loadStoredSession(): AuthSession | null {
 }
 
 function saveSession(auth: AuthResponse, email: string, remember: boolean) {
+  const now = Date.now()
   const session: AuthSession = {
     accessToken: auth.accessToken,
+    refreshToken: auth.refreshToken,
     email,
-    expiresAt: Date.now() + auth.expiresInSeconds * 1000,
+    expiresAt: now + auth.expiresInSeconds * 1000,
+    refreshExpiresAt: now + auth.refreshTokenExpiresInSeconds * 1000,
+    remember,
   }
   clearStoredSession()
   const storage = remember ? localStorage : sessionStorage
@@ -899,6 +908,10 @@ function ShowcasePage({
 
 function App() {
   const [session, setSession] = useState<AuthSession | null>(loadStoredSession)
+  const [isBootstrapping, setIsBootstrapping] = useState(() => {
+    const stored = loadStoredSession()
+    return stored !== null && stored.expiresAt <= Date.now()
+  })
   const [view, setView] = useState<View>(() => {
     const requestedView = getViewFromHash()
     return ['assets', 'showcase'].includes(requestedView) && !loadStoredSession()
@@ -926,6 +939,49 @@ function App() {
     setView('login')
     window.history.replaceState(null, '', '#login')
   }, [])
+
+  const refreshSession = useCallback(async (): Promise<AuthSession | null> => {
+    const current = loadStoredSession()
+    if (!current) {
+      logout()
+      return null
+    }
+    try {
+      const auth = await api.refresh(current.refreshToken)
+      const next = saveSession(auth, current.email, current.remember)
+      setSession(next)
+      return next
+    } catch (error) {
+      // 리프레시 토큰이 무효한 경우에만 로그아웃하고, 일시적 오류는 다음 시도에 맡긴다.
+      if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
+        logout()
+      }
+      return null
+    }
+  }, [logout])
+
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+
+    const renew = async () => {
+      await refreshSession()
+      if (!cancelled) setIsBootstrapping(false)
+    }
+
+    const msUntilRefresh = session.expiresAt - Date.now() - REFRESH_BUFFER_MS
+    if (msUntilRefresh <= 0) {
+      void renew()
+      return () => { cancelled = true }
+    }
+
+    // 만료 전 상태로 진입했으므로 부트스트랩 게이트는 이미 닫혀 있다.
+    const timer = window.setTimeout(() => { void renew() }, msUntilRefresh)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [session, refreshSession])
 
   useEffect(() => {
     if (!window.location.hash) {
@@ -970,6 +1026,13 @@ function App() {
         navigate={navigate}
         onAuthenticated={authenticated}
       />
+    )
+  }
+  if (isBootstrapping) {
+    return (
+      <main className="page-shell accounts-page">
+        <div className="accounts-state">세션을 갱신하고 있습니다.</div>
+      </main>
     )
   }
   if (view === 'showcase') {
