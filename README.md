@@ -4,13 +4,35 @@
 
 ## 실행
 
-백엔드 서버를 `http://localhost:8080`에서 실행한 후:
-
 ```bash
 npm run dev
 ```
 
-개발 서버는 `/api` 요청을 `http://localhost:8080`으로 프록시합니다.
+기본 API 서버는 `https://money.seohamin.com`입니다. 개발 서버는 `/api`
+요청을 `https://money.seohamin.com`으로 프록시하고, 운영 빌드는 기본적으로
+`https://money.seohamin.com/api/v1`을 호출합니다.
+
+## API 서버 설정
+
+환경별로 서버 주소를 바꾸려면 `.env.local` 또는 배포 환경변수에 아래 값을
+설정합니다.
+
+```bash
+# API base URL 전체를 직접 지정
+VITE_API_BASE_URL=https://money.seohamin.com/api/v1
+
+# 또는 서버 origin과 API prefix를 분리해서 지정
+VITE_API_SERVER_URL=https://money.seohamin.com
+VITE_API_PREFIX=/api/v1
+```
+
+로컬 개발에서 Vite 프록시를 계속 쓰려면 `VITE_API_BASE_URL`은 `/api/v1`로
+두고 프록시 대상만 바꿉니다.
+
+```bash
+VITE_API_BASE_URL=/api/v1
+VITE_API_PROXY_TARGET=https://money.seohamin.com
+```
 
 ## 연동 API
 
