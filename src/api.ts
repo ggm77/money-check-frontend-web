@@ -1,4 +1,55 @@
-const API_PREFIX = '/api/v1'
+const DEFAULT_API_SERVER_URL = 'https://money.seohamin.com'
+const DEFAULT_API_PREFIX = '/api/v1'
+
+function hasProtocol(value: string) {
+  return /^[a-z][a-z\d+\-.]*:\/\//i.test(value)
+}
+
+function stripTrailingSlash(value: string) {
+  return value.replace(/\/+$/, '')
+}
+
+function normalizeBaseUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (trimmed.startsWith('/') || hasProtocol(trimmed)) {
+    return stripTrailingSlash(trimmed)
+  }
+
+  return stripTrailingSlash(`https://${trimmed}`)
+}
+
+function normalizePathPrefix(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  return stripTrailingSlash(trimmed.startsWith('/') ? trimmed : `/${trimmed}`)
+}
+
+function getDefaultApiServerUrl() {
+  return import.meta.env.DEV ? '' : DEFAULT_API_SERVER_URL
+}
+
+function getApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL
+  if (configuredBaseUrl?.trim()) {
+    return normalizeBaseUrl(configuredBaseUrl)
+  }
+
+  const apiServerUrl = normalizeBaseUrl(
+    import.meta.env.VITE_API_SERVER_URL ?? getDefaultApiServerUrl(),
+  )
+  const apiPrefix = normalizePathPrefix(import.meta.env.VITE_API_PREFIX ?? DEFAULT_API_PREFIX)
+
+  return `${apiServerUrl}${apiPrefix}`
+}
+
+export const API_BASE_URL = getApiBaseUrl()
 
 export type AuthResponse = {
   accessToken: string
@@ -77,7 +128,8 @@ type RequestOptions = {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
-  const response = await fetch(`${API_PREFIX}${path}`, {
+  const requestUrl = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const response = await fetch(requestUrl, {
     method,
     headers: {
       Accept: 'application/json',
@@ -96,7 +148,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (response.status >= 500 && response.status <= 599) {
       console.error('[AssetView API 5xx]', {
         method,
-        path: `${API_PREFIX}${path}`,
+        path: requestUrl,
         status: response.status,
         response: responseBody,
       })
