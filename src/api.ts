@@ -53,10 +53,10 @@ export const API_BASE_URL = getApiBaseUrl()
 
 export type AuthResponse = {
   accessToken: string
-  refreshToken: string
+  refreshToken?: string
   tokenType: string
   expiresInSeconds: number
-  refreshTokenExpiresInSeconds: number
+  refreshTokenExpiresInSeconds?: number
 }
 
 export type Account = {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from 'react'
 import {
   ArrowRight,
   Check,
@@ -29,9 +29,11 @@ type AuthSession = {
   refreshToken: string
   email: string
   expiresAt: number
-  refreshExpiresAt: number
+  refreshExpiresAt: number | null
   remember: boolean
 }
+
+type AuthenticatedRequest = <T>(request: (token: string) => Promise<T>) => Promise<T>
 
 type IconName =
   | 'arrow'
@@ -59,6 +61,13 @@ type BalanceState =
 const AUTH_STORAGE_KEY = 'assetview-session'
 // 액세스 토큰 만료 약간 전에 미리 재발급해 401을 피한다.
 const REFRESH_BUFFER_MS = 60_000
+
+class SessionRefreshError extends Error {
+  constructor() {
+    super('로그인 세션을 갱신할 수 없습니다. 잠시 후 다시 시도해주세요.')
+    this.name = 'SessionRefreshError'
+  }
+}
 
 function getViewFromHash(): View {
   const hash = window.location.hash.replace('#', '')
@@ -104,6 +113,7 @@ function formatWon(value: number | null) {
 
 function getApiErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message
+  if (error instanceof Error) return error.message
   return '백엔드 서버에 연결할 수 없습니다.'
 }
 
@@ -119,7 +129,11 @@ function loadStoredSession(): AuthSession | null {
 
   try {
     const session = JSON.parse(raw) as AuthSession
-    if (!session.accessToken || !session.refreshToken || session.refreshExpiresAt <= Date.now()) {
+    if (
+      !session.accessToken
+      || !session.refreshToken
+      || isRefreshTokenExpired(session)
+    ) {
       clearStoredSession()
       return null
     }
@@ -130,14 +144,31 @@ function loadStoredSession(): AuthSession | null {
   }
 }
 
-function saveSession(auth: AuthResponse, email: string, remember: boolean) {
+function isRefreshTokenExpired(session: AuthSession) {
+  return typeof session.refreshExpiresAt === 'number'
+    && session.refreshExpiresAt <= Date.now()
+}
+
+function saveSession(
+  auth: AuthResponse,
+  email: string,
+  remember: boolean,
+  previousSession?: AuthSession,
+) {
   const now = Date.now()
+  const refreshToken = auth.refreshToken ?? previousSession?.refreshToken
+  if (!refreshToken) {
+    throw new Error('서버 응답에 refreshToken이 없습니다.')
+  }
+
   const session: AuthSession = {
     accessToken: auth.accessToken,
-    refreshToken: auth.refreshToken,
+    refreshToken,
     email,
     expiresAt: now + auth.expiresInSeconds * 1000,
-    refreshExpiresAt: now + auth.refreshTokenExpiresInSeconds * 1000,
+    refreshExpiresAt: typeof auth.refreshTokenExpiresInSeconds === 'number'
+      ? now + auth.refreshTokenExpiresInSeconds * 1000
+      : previousSession?.refreshExpiresAt ?? null,
     remember,
   }
   clearStoredSession()
@@ -437,10 +468,12 @@ function AccountsPage({
   session,
   navigate,
   onLogout,
+  requestWithAuth,
 }: {
   session: AuthSession
   navigate: (view: View) => void
   onLogout: () => void
+  requestWithAuth: AuthenticatedRequest
 }) {
   const [accounts, setAccounts] = useState<Account[] | null>(null)
   const [balances, setBalances] = useState<Record<string, BalanceState>>({})
@@ -465,7 +498,7 @@ function AccountsPage({
     setNotLinked(false)
 
     try {
-      const response = await api.getAccounts(session.accessToken)
+      const response = await requestWithAuth((token) => api.getAccounts(token))
       setAccounts(response.accounts)
       setBalances(Object.fromEntries(
         response.accounts.map((account) => [account.fintechUseNum, { status: 'loading' }]),
@@ -473,7 +506,7 @@ function AccountsPage({
 
       await Promise.all(response.accounts.map(async (account) => {
         try {
-          const balance = await api.getBalance(session.accessToken, account.fintechUseNum)
+          const balance = await requestWithAuth((token) => api.getBalance(token, account.fintechUseNum))
           setBalances((current) => ({
             ...current,
             [account.fintechUseNum]: { status: 'success', data: balance },
@@ -502,7 +535,7 @@ function AccountsPage({
     } finally {
       setIsLoading(false)
     }
-  }, [handleApiError, session.accessToken])
+  }, [handleApiError, requestWithAuth])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -518,7 +551,7 @@ function AccountsPage({
     setMessage('')
     setServerError(false)
     try {
-      const response = await api.getAuthorizeUrl(session.accessToken)
+      const response = await requestWithAuth((token) => api.getAuthorizeUrl(token))
       if (authorizeWindow) {
         authorizeWindow.location.href = response.authorizeUrl
         setMessage('오픈뱅킹 인증 완료 후 이 화면에서 새로고침을 눌러주세요.')
@@ -633,10 +666,12 @@ function ShowcasePage({
   session,
   navigate,
   onLogout,
+  requestWithAuth,
 }: {
   session: AuthSession
   navigate: (view: View) => void
   onLogout: () => void
+  requestWithAuth: AuthenticatedRequest
 }) {
   const [accounts, setAccounts] = useState<Account[] | null>(null)
   const [balances, setBalances] = useState<Record<string, BalanceState>>({})
@@ -652,7 +687,7 @@ function ShowcasePage({
     setMessage('')
 
     try {
-      const response = await api.getAccounts(session.accessToken)
+      const response = await requestWithAuth((token) => api.getAccounts(token))
       setAccounts(response.accounts)
       setBalances(Object.fromEntries(
         response.accounts.map((account) => [account.fintechUseNum, { status: 'loading' }]),
@@ -660,7 +695,7 @@ function ShowcasePage({
 
       await Promise.all(response.accounts.map(async (account) => {
         try {
-          const balance = await api.getBalance(session.accessToken, account.fintechUseNum)
+          const balance = await requestWithAuth((token) => api.getBalance(token, account.fintechUseNum))
           setBalances((current) => ({
             ...current,
             [account.fintechUseNum]: { status: 'success', data: balance },
@@ -695,7 +730,7 @@ function ShowcasePage({
     } finally {
       setIsLoading(false)
     }
-  }, [onLogout, session.accessToken])
+  }, [onLogout, requestWithAuth])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -893,11 +928,13 @@ function ProfilePage({
   navigate,
   onLogout,
   onEmailChange,
+  requestWithAuth,
 }: {
   session: AuthSession
   navigate: (view: View) => void
   onLogout: () => void
   onEmailChange: (email: string) => void
+  requestWithAuth: AuthenticatedRequest
 }) {
   const [profileState, setProfileState] = useState<ProfileState>({ status: 'loading' })
 
@@ -932,7 +969,7 @@ function ProfilePage({
   const loadProfile = useCallback(async () => {
     setProfileState({ status: 'loading' })
     try {
-      const profile = await api.getProfile(session.accessToken)
+      const profile = await requestWithAuth((token) => api.getProfile(token))
       setProfileState({ status: 'success', data: profile })
     } catch (error) {
       if (handleApiError(error)) return
@@ -942,7 +979,7 @@ function ProfilePage({
           : { status: 'error', message: getApiErrorMessage(error) },
       )
     }
-  }, [handleApiError, session.accessToken])
+  }, [handleApiError, requestWithAuth])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -967,7 +1004,7 @@ function ProfilePage({
 
     setIsChangingEmail(true)
     try {
-      await api.changeEmail(session.accessToken, normalizedEmail)
+      await requestWithAuth((token) => api.changeEmail(token, normalizedEmail))
       onEmailChange(normalizedEmail)
       setProfileState((current) =>
         current.status === 'success'
@@ -1012,7 +1049,7 @@ function ProfilePage({
 
     setIsChangingPassword(true)
     try {
-      await api.changePassword(session.accessToken, currentPassword, newPassword)
+      await requestWithAuth((token) => api.changePassword(token, currentPassword, newPassword))
       setPasswordSuccess(true)
       setCurrentPassword('')
       setNewPassword('')
@@ -1035,7 +1072,7 @@ function ProfilePage({
     setDeleteServerError(false)
     setIsDeleting(true)
     try {
-      await api.deleteAccount(session.accessToken)
+      await requestWithAuth((token) => api.deleteAccount(token))
       onLogout()
     } catch (error) {
       if (handleApiError(error)) return
@@ -1303,6 +1340,12 @@ function App() {
       ? 'login'
       : requestedView
   })
+  const sessionRef = useRef<AuthSession | null>(session)
+  const refreshPromiseRef = useRef<Promise<AuthSession | null> | null>(null)
+
+  useEffect(() => {
+    sessionRef.current = session
+  }, [session])
 
   const navigate = useCallback((nextView: View) => {
     const destination = ['assets', 'showcase', 'profile'].includes(nextView) && !session ? 'login' : nextView
@@ -1313,14 +1356,19 @@ function App() {
 
   const authenticated = (auth: AuthResponse, email: string, remember: boolean) => {
     const nextSession = saveSession(auth, email, remember)
+    sessionRef.current = nextSession
     setSession(nextSession)
+    setIsBootstrapping(false)
     setView('assets')
     window.history.replaceState(null, '', '#assets')
   }
 
   const logout = useCallback(() => {
+    sessionRef.current = null
+    refreshPromiseRef.current = null
     clearStoredSession()
     setSession(null)
+    setIsBootstrapping(false)
     setView('login')
     window.history.replaceState(null, '', '#login')
   }, [])
@@ -1332,29 +1380,95 @@ function App() {
       // 토큰을 보관 중인 스토리지에만 갱신된 이메일을 다시 기록한다.
       const storage = current.remember ? localStorage : sessionStorage
       storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(next))
+      sessionRef.current = next
       return next
     })
   }, [])
 
   const refreshSession = useCallback(async (): Promise<AuthSession | null> => {
-    const current = loadStoredSession()
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current
+    }
+
+    const current = sessionRef.current ?? loadStoredSession()
     if (!current) {
       logout()
       return null
     }
-    try {
-      const auth = await api.refresh(current.refreshToken)
-      const next = saveSession(auth, current.email, current.remember)
-      setSession(next)
-      return next
-    } catch (error) {
-      // 리프레시 토큰이 무효한 경우에만 로그아웃하고, 일시적 오류는 다음 시도에 맡긴다.
-      if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
-        logout()
-      }
+    if (isRefreshTokenExpired(current)) {
+      logout()
       return null
     }
+
+    const refreshPromise = (async () => {
+      try {
+        const auth = await api.refresh(current.refreshToken)
+        const latest = sessionRef.current
+        if (!latest || latest.refreshToken !== current.refreshToken) {
+          return latest
+        }
+
+        const next = saveSession(auth, latest.email, latest.remember, latest)
+        sessionRef.current = next
+        setSession(next)
+        return next
+      } catch (error) {
+        // 리프레시 토큰이 무효한 경우에만 로그아웃하고, 일시적 오류는 다음 시도에 맡긴다.
+        if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
+          logout()
+        }
+        return null
+      }
+    })()
+
+    refreshPromiseRef.current = refreshPromise
+    try {
+      return await refreshPromise
+    } finally {
+      if (refreshPromiseRef.current === refreshPromise) {
+        refreshPromiseRef.current = null
+      }
+    }
   }, [logout])
+
+  const getFreshSession = useCallback(async () => {
+    const current = sessionRef.current ?? loadStoredSession()
+    if (!current || isRefreshTokenExpired(current)) {
+      logout()
+      return null
+    }
+
+    if (current.expiresAt - Date.now() <= REFRESH_BUFFER_MS) {
+      return refreshSession()
+    }
+
+    return current
+  }, [logout, refreshSession])
+
+  const requestWithAuth = useCallback(async <T,>(request: (token: string) => Promise<T>) => {
+    const current = await getFreshSession()
+    if (!current) {
+      throw new SessionRefreshError()
+    }
+
+    try {
+      return await request(current.accessToken)
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) {
+        throw error
+      }
+
+      const refreshed = await refreshSession()
+      if (!refreshed) {
+        if (sessionRef.current) {
+          throw new SessionRefreshError()
+        }
+        throw error
+      }
+
+      return request(refreshed.accessToken)
+    }
+  }, [getFreshSession, refreshSession])
 
   useEffect(() => {
     if (!session) return
@@ -1432,7 +1546,14 @@ function App() {
     )
   }
   if (view === 'showcase') {
-    return <ShowcasePage navigate={navigate} onLogout={logout} session={session} />
+    return (
+      <ShowcasePage
+        navigate={navigate}
+        onLogout={logout}
+        requestWithAuth={requestWithAuth}
+        session={session}
+      />
+    )
   }
   if (view === 'profile') {
     return (
@@ -1440,11 +1561,19 @@ function App() {
         navigate={navigate}
         onEmailChange={changeEmail}
         onLogout={logout}
+        requestWithAuth={requestWithAuth}
         session={session}
       />
     )
   }
-  return <AccountsPage navigate={navigate} onLogout={logout} session={session} />
+  return (
+    <AccountsPage
+      navigate={navigate}
+      onLogout={logout}
+      requestWithAuth={requestWithAuth}
+      session={session}
+    />
+  )
 }
 
 export default App

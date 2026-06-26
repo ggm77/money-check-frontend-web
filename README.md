@@ -41,5 +41,6 @@ VITE_API_PROXY_TARGET=https://money.seohamin.com
 - 연결 계좌 목록 조회
 - 계좌별 잔액 조회
 
-JWT accessToken은 로그인 상태 유지 선택 시 `localStorage`, 선택하지 않으면
-`sessionStorage`에 저장됩니다.
+JWT accessToken과 refreshToken은 로그인 상태 유지 선택 시 `localStorage`,
+선택하지 않으면 `sessionStorage`에 저장됩니다. accessToken 만료 전 또는
+401 응답 발생 시 refreshToken으로 세션을 갱신합니다.
